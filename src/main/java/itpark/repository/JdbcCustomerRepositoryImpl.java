@@ -41,6 +41,12 @@ public class JdbcCustomerRepositoryImpl implements CustomerRepository {
     }
 
     @Override
+    public Customer getByName(String exactName) {
+        List<Customer> customers = jdbcTemplate.query("SELECT * FROM customers WHERE name=?", customerRowMapper, exactName);
+        return DataAccessUtils.singleResult(customers);
+    }
+
+    @Override
     public void add(Customer customer) {
         jdbcTemplate.update("INSERT INTO customers(name, balance) VALUES (?, ?)",
                 customer.getName(), customer.getBalance());

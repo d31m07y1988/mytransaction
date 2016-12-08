@@ -1,13 +1,18 @@
 package itpark;
 
+import itpark.model.Customer;
+import itpark.model.Product;
 import itpark.service.CustomerService;
+import itpark.service.ProductService;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.transaction.TransactionException;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -22,6 +27,7 @@ public class Server {
 
     ApplicationContext applicationContext = new AnnotationConfigApplicationContext(AppConfig.class);
     CustomerService customerService = applicationContext.getBean("customerService", CustomerService.class);
+    ProductService productService = applicationContext.getBean("productService", ProductService.class);
 
 
     public Server(int port) {
@@ -58,13 +64,45 @@ public class Server {
             try (Connection connection = new Connection(socket)) {
                 clientName = serverHandshake(connection);
                 while (authorized) {
-                    String clientMessage = connection.receive();
+                    String command = connection.receive();
+                    if ((command == null || command.equalsIgnoreCase("exit")) {
+                        if (command.equalsIgnoreCase("showProducts")) {
+                            System.out.println(outputFormatting(customerService.findAll()));
+                        } else if (command.startsWith("get(")) {
+                            try {
+                                int id = Integer.parseInt(command.substring(command.indexOf('(') + 1, command.length() - 1));
+                                System.out.println(customerService.get(id));
+                            } catch (NumberFormatException e) {
+                                System.out.println("Не верно введена команда");
+                            }
+                        } else if (command.startsWith("transfer ")) {
+                            String[] withdrawParametrs = command.split(" ");
+
+                            if (withdrawParametrs.length == 4) {
+                                try {
+                                    Customer sender = customerService.get(Integer.parseInt(withdrawParametrs[1]));
+                                    Customer receiver = customerService.get(Integer.parseInt(withdrawParametrs[2]));
+                                    int amount = Integer.parseInt(withdrawParametrs[3]);
+                                    customerService.transfer(sender, receiver, amount);
+                                    System.out.println("операция произведена успешно");
+                                } catch (NumberFormatException e) {
+                                    System.out.println("не верно заданы параметры запроса.");
+                                } catch (TransactionException e) {
+                                    System.out.println("транзакция не прозведена. " + e.getMessage());
+                                }
+                            } else {
+                                System.out.println("параметры запроса введены не верно");
+                            }
+                        } else {
+                            System.out.println("комманда введена не верно. \n Доступно showProducts, get(<id>) и withdraw <id from> <id to> <amount>");
+                        }
+                    }
+                    /*String clientMessage = connection.receive();
                     if (clientMessage==null || clientMessage.equalsIgnoreCase("exit")) {
                         connectedClients.remove(clientName);
                         logger.info(clientName + " покинул чат");
                         break;
-                    }
-                    sendAll(clientName + ": " + clientMessage);
+                    }*/
                 }
 
             } catch (SocketException e) {
@@ -81,12 +119,15 @@ public class Server {
         private String serverHandshake(Connection connection) throws IOException {
             logger.info("Запрос имени");
             String userName = connection.receive();
-            while (userName!=null && connectedClients.containsKey(userName)) {
-                connection.send("Пользователь с таким именем уже существует. Введите другое имя.");
+            while (userName!=null) {
+                if(customerService.getByName(userName)==null) {
+                    connection.send("Такого пользователя не существует");
+                } else if(connectedClients.containsKey(customerService.getByName(userName).getId()))
+                connection.send("Пользователь с таким именем уже залогинен. Введите другое имя.");
                 userName = connection.receive();
             }
             if (userName!=null && !userName.equalsIgnoreCase("exit")) {
-                connectedClients.put(userName, connection);
+                connectedClients.put(customerService.getByName(userName).getId(), connection);
                 logger.info("Пользователь авторизован");
             } else {
                 authorized = false;
@@ -94,5 +135,11 @@ public class Server {
             }
             return userName;
         }
+    }
+
+    private static String outputFormatting(List<Customer> customers) {
+        StringBuilder allCustomers = new StringBuilder();
+        customers.forEach(p -> allCustomers.append(p).append("\n"));
+        return allCustomers.toString();
     }
 }

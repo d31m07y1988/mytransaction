@@ -10,6 +10,7 @@ import java.util.List;
 public interface CustomerRepository {
     List<Customer> findAll();
     Customer get(int id);
+    Customer getByName(String exactName);
     void add(Customer customer);
     void update(Customer customer);
 }

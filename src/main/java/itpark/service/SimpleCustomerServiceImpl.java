@@ -30,6 +30,11 @@ public class SimpleCustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    public Customer getByName(String exactName) {
+        return customerRepository.getByName(exactName);
+    }
+
+    @Override
     public void add(Customer customer) {
         customerRepository.add(customer);
     }
