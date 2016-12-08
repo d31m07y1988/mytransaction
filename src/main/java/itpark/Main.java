@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * Created by user on 06.12.16.
  */
-public class Service {
+public class Main {
     public static void main(String[] args) {
         ApplicationContext applicationContext = new AnnotationConfigApplicationContext(AppConfig.class);
         CustomerService customerService = applicationContext.getBean("customerService", CustomerService.class);
