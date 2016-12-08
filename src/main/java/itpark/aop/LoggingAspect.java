@@ -24,4 +24,10 @@ public class LoggingAspect {
         logger.info(joinPoint.getTarget().getClass().getName());
     }
 
+    @Before("execution(void itpark.service.*Product*.buy(*,*,*))")
+    public void logGetProducts(JoinPoint joinPoint) {
+        logger.info("product get called");
+        logger.info(joinPoint.getTarget().getClass().getName());
+    }
+
 }
