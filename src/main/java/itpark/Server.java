@@ -60,86 +60,97 @@ public class Server {
 
         @Override
         public void run() {
-            String clientName = null;
+            Integer clientId = null;
             try (Connection connection = new Connection(socket)) {
-                clientName = serverHandshake(connection);
+                clientId = serverHandshake(connection);
                 while (authorized) {
                     String command = connection.receive();
-                    if ((command == null || command.equalsIgnoreCase("exit")) {
-                        if (command.equalsIgnoreCase("showProducts")) {
-                            System.out.println(outputFormatting(customerService.findAll()));
-                        } else if (command.startsWith("get(")) {
-                            try {
-                                int id = Integer.parseInt(command.substring(command.indexOf('(') + 1, command.length() - 1));
-                                System.out.println(customerService.get(id));
-                            } catch (NumberFormatException e) {
-                                System.out.println("Не верно введена команда");
-                            }
-                        } else if (command.startsWith("transfer ")) {
-                            String[] withdrawParametrs = command.split(" ");
-
-                            if (withdrawParametrs.length == 4) {
-                                try {
-                                    Customer sender = customerService.get(Integer.parseInt(withdrawParametrs[1]));
-                                    Customer receiver = customerService.get(Integer.parseInt(withdrawParametrs[2]));
-                                    int amount = Integer.parseInt(withdrawParametrs[3]);
-                                    customerService.transfer(sender, receiver, amount);
-                                    System.out.println("операция произведена успешно");
-                                } catch (NumberFormatException e) {
-                                    System.out.println("не верно заданы параметры запроса.");
-                                } catch (TransactionException e) {
-                                    System.out.println("транзакция не прозведена. " + e.getMessage());
-                                }
-                            } else {
-                                System.out.println("параметры запроса введены не верно");
-                            }
-                        } else {
-                            System.out.println("комманда введена не верно. \n Доступно showProducts, get(<id>) и withdraw <id from> <id to> <amount>");
-                        }
-                    }
-                    /*String clientMessage = connection.receive();
-                    if (clientMessage==null || clientMessage.equalsIgnoreCase("exit")) {
-                        connectedClients.remove(clientName);
-                        logger.info(clientName + " покинул чат");
+                    if (command == null || command.equalsIgnoreCase("exit")) {
+                        connectedClients.remove(clientId);
+                        logger.info(clientId + " ушел из магазина");
                         break;
-                    }*/
-                }
+                    } else if (command.equalsIgnoreCase("showall")) {
+                        connection.send(outputFormatting(productService.findAll()));
+                    } else if (command.startsWith("get ")) {
+                        try {
+                            int id = Integer.parseInt(command.substring(command.indexOf(' ') + 1));
+                            connection.send(productService.get(id).toString());
+                        } catch (NumberFormatException e) {
+                            connection.send("Не верно введена команда");
+                        }
+                    } else if (command.startsWith("buy ")) {
+                        String[] buyParam = command.split(" ");
+                        if (buyParam.length == 3) {
+                            try {
+                                Product productId = productService.get(Integer.parseInt(buyParam[1]));
+                                int boughtProduct = Integer.parseInt(buyParam[2]);
+                                productService.buy(productId, customerService.get(clientId), boughtProduct);
+                            } catch (NumberFormatException e) {
+                                connection.send("не верно заданы параметры запроса.");
+                            } catch (TransactionException e) {
+                                connection.send("транзакция не прозведена. " + e.getMessage());
+                            }
 
-            } catch (SocketException e) {
-                System.err.println("Связь с клиентом утеряна");
-                if(clientName!=null) {
-                    connectedClients.remove(clientName);
+                        } else {
+                            connection.send("параметры запроса введены не верно");
+                        }
+                    } else if (command.equalsIgnoreCase("showbalance")) {
+                        connection.send("Текущий баланс:" + customerService.get(clientId).getBalance());
+                    } else if (command.equalsIgnoreCase("help")) {
+                        connection.send("Для просмотра ассортимента: showall \n" +
+                                "\t Для просмотра 1 товара: get <id> \n" +
+                                "\t Для покупки: buy <id> <count> \n" +
+                                "\t Показать текущий остаток: showbalance \n" +
+                                "\t Показать список команд: help");
+                    } else {
+                        connection.send("комманда введена не верно. help - для просмотра команд");
+                    }
                 }
-            } catch (IOException e) {
+            } catch(SocketException e){
+                System.err.println("Связь с клиентом утеряна");
+                if (clientId != null)
+                    connectedClients.remove(clientId);
+            } catch(IOException e){
                 e.printStackTrace();
             }
 
         }
 
-        private String serverHandshake(Connection connection) throws IOException {
+        private int serverHandshake(Connection connection) throws IOException {
             logger.info("Запрос имени");
             String userName = connection.receive();
-            while (userName!=null) {
-                if(customerService.getByName(userName)==null) {
+            Customer authorizedCustomer = null;
+            while (userName != null && !userName.equalsIgnoreCase("exit")) {
+                authorizedCustomer = customerService.getByName(userName);
+                System.out.println("_________________________________");
+                System.out.println(authorizedCustomer);
+                System.out.println("_________________________________");
+                if (authorizedCustomer == null) {
                     connection.send("Такого пользователя не существует");
-                } else if(connectedClients.containsKey(customerService.getByName(userName).getId()))
-                connection.send("Пользователь с таким именем уже залогинен. Введите другое имя.");
-                userName = connection.receive();
+                    userName = connection.receive();
+                    continue;
+                } else if (connectedClients.containsKey(authorizedCustomer.getId())) {
+                    connection.send("Пользователь с таким именем уже залогинен. Введите другое имя.");
+                    userName = connection.receive();
+                    continue;
+                }
+                break;
             }
-            if (userName!=null && !userName.equalsIgnoreCase("exit")) {
-                connectedClients.put(customerService.getByName(userName).getId(), connection);
+            if (userName != null && !userName.equalsIgnoreCase("exit")) {
+                connectedClients.put(authorizedCustomer.getId(), connection);
+                connection.send("Добро пожаловать в магазин! список доступных команд help");
                 logger.info("Пользователь авторизован");
             } else {
                 authorized = false;
                 logger.info("Пользователь не авторизован");
             }
-            return userName;
+            return authorizedCustomer.getId();
         }
     }
 
-    private static String outputFormatting(List<Customer> customers) {
-        StringBuilder allCustomers = new StringBuilder();
-        customers.forEach(p -> allCustomers.append(p).append("\n"));
-        return allCustomers.toString();
+    private static String outputFormatting(List list) {
+        StringBuilder allElements = new StringBuilder();
+        list.forEach(p -> allElements.append(p).append("\n"));
+        return allElements.toString();
     }
 }

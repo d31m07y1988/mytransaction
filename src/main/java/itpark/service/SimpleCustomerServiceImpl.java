@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service("customerService")
-@Transactional
 public class SimpleCustomerServiceImpl implements CustomerService {
     private CustomerRepository customerRepository;
 
@@ -35,11 +34,13 @@ public class SimpleCustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @Transactional
     public void add(Customer customer) {
         customerRepository.add(customer);
     }
 
     @Override
+    @Transactional
     public void withdraw(Customer customer, int amount)  {
         if(customer==null) {
             throw new IllegalTransactionStateException("пользователь для списания не найден");
@@ -56,6 +57,7 @@ public class SimpleCustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @Transactional
     public void deposit(Customer customer, int amount) {
         if(customer==null) {
             throw new IllegalTransactionStateException("пользователь для списания не найден");
@@ -69,6 +71,7 @@ public class SimpleCustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @Transactional
     public void transfer(Customer sender, Customer receiver, int amount) {
         withdraw(sender, amount);
         deposit(receiver, amount);

@@ -43,6 +43,6 @@ public class Product {
 
     @Override
     public String toString() {
-        return name + "(" + id + "), count: " + count + ", price=" + price;
+        return "id: " + id + ", " + name + ", кол-во: " + count + ", цена:" + price;
     }
 }

@@ -24,7 +24,7 @@ public class Client {
             messageGetter.setDaemon(true);
             messageGetter.start();
 
-            System.out.println("Введите имя");
+            System.out.println("Прошу авторизоваться:");
             String message = "";
             while (!"exit".equalsIgnoreCase(message)) {
                 message = keyboardReader.readLine();

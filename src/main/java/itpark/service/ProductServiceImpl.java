@@ -14,7 +14,6 @@ import java.util.List;
  * Created by Ramil on 08.12.2016.
  */
 @Service("productService")
-@Transactional
 public class ProductServiceImpl implements ProductService {
 
     private ProductRepository productRepository;
@@ -43,11 +42,13 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
     public void add(Product product) {
         productRepository.add(product);
     }
 
     @Override
+    @Transactional
     public void buy(Product product, Customer customer, int soldCount) {
         if (soldCount < 0) {
             throw new IllegalTransactionStateException("списание отрицательной значения не возможно");
@@ -58,7 +59,7 @@ public class ProductServiceImpl implements ProductService {
         product.setCount(product.getCount()-soldCount);
         productRepository.update(product);
         int amount = product.getPrice() * soldCount;
-        customerService.transfer(customer,customerService.get(0), amount);
+        customerService.transfer(customer,customerService.getByName("Shop"), amount);
     }
 
 }
