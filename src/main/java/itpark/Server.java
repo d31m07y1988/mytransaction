@@ -85,6 +85,7 @@ public class Server {
                                 Product productId = productService.get(Integer.parseInt(buyParam[1]));
                                 int boughtProduct = Integer.parseInt(buyParam[2]);
                                 productService.buy(productId, customerService.get(clientId), boughtProduct);
+                                connection.send("Спасибо за покупку!");
                             } catch (NumberFormatException e) {
                                 connection.send("не верно заданы параметры запроса.");
                             } catch (TransactionException e) {
